@@ -12,9 +12,16 @@ https://docs.djangoproject.com/en/1.8/ref/settings/
 
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 import os
+import data_portal
+import cmpd_reg
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+DATA_PORTAL_DIR = os.path.dirname(data_portal.__file__)
+
+APP_ROOT = os.path.dirname(cmpd_reg.__file__)
+
+MEDIA_ROOT = os.path.dirname(APP_ROOT)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.8/howto/deployment/checklist/
