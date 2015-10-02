@@ -36,7 +36,7 @@ class Property(models.Model):
 
 
 class Compound(rdkit_models.Model):
-
+	#TODO need to fix media root so images appear in app folder
 	_upload_to_root = 'cmpd_images/'
 
 	smiles = models.CharField(max_length=2048)
@@ -46,7 +46,8 @@ class Compound(rdkit_models.Model):
 	ctab = models.TextField(blank=True, null=True)
 	datetime_loaded = models.DateTimeField(auto_now_add=True,
                                      		verbose_name="Datetime When Compound Registered")
-	image = models.FileField(upload_to=_upload_to_root,
+	image = models.ImageField(upload_to=_upload_to_root,
+							  null=True,
         					  verbose_name="Compound Image")
 
 	fingerprint = models.OneToOneField(Fingerprint,

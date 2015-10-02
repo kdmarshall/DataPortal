@@ -1,0 +1,64 @@
+{% extends "cmpd_reg/base.html" %}
+{% load staticfiles %}
+
+{% block title %}
+Cmpd Reg
+{% endblock title %}
+
+{% block body %}
+	<h1>Compound Registration</h1>
+	<div class="row">
+		<div class="container col-lg-6">
+			<div id="jsme_container"></div>
+			<button type="button" id="get-smiles" class="btn btn-primary">Get SMILES</button>
+			<form role="form" action="/cmpd-reg/" method="post">
+				{% csrf_token %}
+				<fieldset>
+					<section class="col col-lg-4">
+            <div class="form-group">
+              <label for="showSmiles">SMILES Input</label>
+              <input type="textarea" class="form-control" id="show-smiles" name="smiles">
+            </div>
+          </section>
+				</fieldset>
+				<div class="form-actions">
+       				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Retrieve Compound Image" />
+      			</div>
+			</form>
+		</div>
+		<div class="container col-lg-6">
+			<div class="panel panel-default">
+	  			<div class="panel-heading">Query Results</div>
+	  			<div class="panel-body">
+	  				{% if searched_smiles %}
+    					<h5>Searched Smiles: {{ searched_smiles }}</h5>
+    					<h5>Searched Compound Image</h5>
+    					{{ searched_compound_image|safe }}
+    					<h5>Compound is new? {{ new_compound }}</h5>
+  					{% endif %}
+  					{% if smiles_error %}
+    					<h5>{{ smiles_error }}</h5>
+  					{% endif %}
+	  			</div>
+			</div>
+		</div>
+	</div>
+{% endblock body %}
+{% block scripts %}
+<script>
+    //this function will be called after the JavaScriptApplet code has been loaded.
+    function jsmeOnLoad() {
+        jsmeApplet = new JSApplet.JSME("jsme_container", "480px", "440px"); 
+   }
+   $('#get-smiles').click(function(event){
+        var smiles = jsmeApplet.smiles();
+        console.log(smiles);
+        $('#show-smiles').val(smiles);
+    });
+   // $('#get-cmpd-image').click(function(event){
+   //      var smiles = jsmeApplet.smiles();
+   //      console.log("Requesting image for structure: "+smiles);
+   //  });
+
+</script>
+{% endblock scripts %}

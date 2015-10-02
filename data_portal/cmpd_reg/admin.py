@@ -1,3 +1,9 @@
 from django.contrib import admin
+from models import (Compound,
+					Property,
+					Fingerprint)
 
-# Register your models here.
+class CompoundAdmin(admin.ModelAdmin):
+	pass
+
+admin.site.register(Compound, CompoundAdmin)
