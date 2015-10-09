@@ -2,16 +2,16 @@
 {% load staticfiles %}
 
 {% block title %}
-Cmpd Reg
+Substructure
 {% endblock title %}
 
 {% block body %}
-	<h1>Compound Registration</h1>
+	<h1>Substructure Search</h1>
 	<div class="row">
 		<div class="container col-lg-6">
 			<div id="jsme_container"></div>
 			<button type="button" id="get-smiles" class="btn btn-primary">Get SMILES</button>
-			<form role="form" action="/cmpd-reg/" method="post">
+			<form role="form" action="/substructure/" method="post">
 				{% csrf_token %}
 				<fieldset>
 					<section class="col col-lg-4">
@@ -22,7 +22,7 @@ Cmpd Reg
           </section>
 				</fieldset>
 				<div class="form-actions">
-       				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Register Compound" />
+       				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Submit Substructure Search" />
       			</div>
 			</form>
 		</div>
@@ -30,16 +30,37 @@ Cmpd Reg
 			<div class="panel panel-default">
 	  			<div class="panel-heading">Query Results</div>
 	  			<div class="panel-body">
-	  				{% if searched_smiles %}
-    					<h5>Searched Smiles: {{ searched_smiles }}</h5>
-    					<h5>Searched Compound Image</h5>
-    					{{ searched_compound_image|safe }}
-    					<h5>Compound ID {{ returned_compound }}</h5>
-              <h5>Is New? {{ is_new }}</h5>
-  					{% endif %}
-  					{% if smiles_error %}
-    					<h5>{{ smiles_error }}</h5>
-  					{% endif %}
+	  			{% if searched_smiles %}
+    				<h5>Searched Smiles: {{ searched_smiles }}</h5>
+    				<h5>Searched Compound Image:</h5>
+    				{{ searched_compound_image|safe }}	
+  				{% endif %}
+  				{% if no_matches %}
+  					<h3>No substructure matches found</h3>
+  				{% endif %}
+  				{% if matched_substructures %}
+  					<table class="table table-striped">
+    					<thead>
+	      					<tr>
+	        					<th>Compound ID</th>
+	        					<th>SMILES</th>
+	        					<th>Structure</th>
+	      					</tr>
+	    				</thead>
+	   					<tbody>
+	   					{% for substruct in matched_substructures %}
+	      					<tr>
+	        					<td>{{ substruct.id }}</td>
+	        					<td>{{ substruct.smiles }}</td>
+	        					<td>{{ substruct.image|safe }}</td>
+	      					</tr>
+	      				{% endfor %}
+	    				</tbody>
+	  				</table>
+  				{% endif %}
+  				{% if smiles_error %}
+    				<h5>{{ smiles_error }}</h5>
+  				{% endif %}
 	  			</div>
 			</div>
 		</div>

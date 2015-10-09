@@ -15,9 +15,13 @@ Including another URLconf
 """
 from django.conf.urls import include, url
 from django.contrib import admin
-from cmpd_reg.views import creg_index
+from cmpd_reg import views
 
 urlpatterns = [
     url(r'^admin/', include(admin.site.urls)),
-    url(r'^cmpd-reg/$', creg_index)
+    url(r'^cmpd-reg/$', views.creg_index),
+    url(r'^$', views.index),
+    url(r'^substructure/$', views.substructure),
+    url(r'^similarity/$', views.similarity),
+    url(r'^bulk-loader/$', views.bulk_loader),
 ]

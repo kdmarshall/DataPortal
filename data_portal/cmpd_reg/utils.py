@@ -1,5 +1,7 @@
 from matplotlib.colors import ColorConverter
 from django.core.files.base import ContentFile
+from django.db import connection
+
 from rdkit import Chem 
 from rdkit.Chem import Draw
 from models import (Compound,
@@ -9,6 +11,7 @@ from django_rdkit.models import (MOL_TO_CTAB,
 								 MOL_INCHI,
 								 MOL_INCHIKEY)
 import StringIO
+import psycopg2
 
 """
 This module is for useful cheminformatics related functions
@@ -29,23 +32,17 @@ def get_or_create_compound(smiles):
 	compounds = Compound.objects.filter(molecule__exact=smiles)
 	if not compounds or len(compounds) == 0:
 		mol = Chem.MolFromSmiles(smiles)
-		#pil_img = create_compound_image(mol)
-		#output = StringIO.StringIO()
-		#pil_img.save(output, "PNG")
-		#contents = output.getvalue()
-		#output.close()
 		compound = Compound(smiles=smiles,
 							molecule=mol,
 							inchi=MOL_INCHI(mol),
 							inchi_key=MOL_INCHIKEY(mol),
 							ctab=Chem.MolToMolBlock(mol))
-		#compound.image.save("structure_{}.png".format(str(compound.id)), ContentFile(contents))
 		compound.save()
-		return compound, len(compounds)
+		return compound, True
 	elif len(compounds) == 1:
-		return compounds[0], len(compounds)
+		return compounds[0], False
 	else:
-		return None, len(compounds)
+		return None, False
 
 def desalt_neutralize(smiles, return_mol=False):
 	"""
@@ -72,6 +69,14 @@ def create_compound_image(compound,smiles=False, size=(300,300), png_path=None):
 		img.save(png_path)
 	return img
 
+def create_image_tag(pil):
+	output = StringIO.StringIO()
+	pil.save(output, "PNG")
+	contents = output.getvalue().encode("base64")
+	output.close()
+	img_tag = '<img src="data:image/png;base64,{}" />'.format(contents)
+	return img_tag
+
 def create_substruct_image(mol, substruct_smarts, size=(300,300), highlight_color='aqua', png_path=None):
 	"""
 	Returns a PIL Image object of compound with
@@ -85,7 +90,8 @@ def create_substruct_image(mol, substruct_smarts, size=(300,300), highlight_colo
 	except Exception:
 		print "Cannot find color {}. Setting to default aqua.".format(highlight_color)
 		color = ColorConverter().to_rgb('aqua')
-	img = Draw.MolToImage(mol, highlightAtoms=matching, size=size, hightlightColor=color, wedgeBonds=True, kekulize=True)
+	color = tuple(int(i) for i in color)
+	img = Draw.MolToImage(mol, highlightAtoms=matching, highlightColor=color, size=size, wedgeBonds=True, kekulize=True)
 	if png_path:
 		img.save(png_path)
 	return img
@@ -93,3 +99,31 @@ def create_substruct_image(mol, substruct_smarts, size=(300,300), highlight_colo
 
 def write_to_sdf(mol_list, file_path):
 	pass
+
+
+def set_chiral_flag():
+    SET_FLAG = 'set rdkit.do_chiral_sss=true'
+    try:
+        cursor = connection.cursor()
+        cursor.execute(SET_FLAG)
+        print "**** CHIRAL FLAG SET ****"
+
+    except psycopg2.DatabaseError, e:
+        print 'Error %s' % e
+
+def remove_chiral_flag():
+    REMOVE_FLAG = 'set rdkit.do_chiral_sss=false'
+    try:
+        cursor = connection.cursor()
+        cursor.execute(REMOVE_FLAG)
+        print "**** CHIRAL FLAG REMOVED ****"
+
+    except psycopg2.DatabaseError, e:
+        print 'Error %s' % e
+
+def substructure_search(smiles_substructure):
+	compounds = Compound.objects.filter(molecule__hassubstruct=smiles_substructure)
+	if len(compounds) == 0:
+		return None
+	else:
+		return compounds

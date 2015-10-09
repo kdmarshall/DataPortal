@@ -119,3 +119,7 @@ STATIC_URL = '/static/'
 STATICFILES_DIRS = (
     os.path.join(BASE_DIR, "static"),
 )
+
+# Make sure chiral substructure searching is enabled
+from cmpd_reg.utils import set_chiral_flag
+set_chiral_flag()
