@@ -6,4 +6,12 @@ from models import (Compound,
 class CompoundAdmin(admin.ModelAdmin):
 	pass
 
+class PropertyAdmin(admin.ModelAdmin):
+	pass
+
+class FingerprintAdmin(admin.ModelAdmin):
+	pass
+
 admin.site.register(Compound, CompoundAdmin)
+admin.site.register(Property, PropertyAdmin)
+admin.site.register(Fingerprint, FingerprintAdmin)

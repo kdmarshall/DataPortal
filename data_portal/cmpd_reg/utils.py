@@ -7,18 +7,14 @@ from rdkit.Chem import Draw
 from models import (Compound,
 					Property,
 					Fingerprint)
-from django_rdkit.models import (MOL_TO_CTAB,
-								 MOL_INCHI,
-								 MOL_INCHIKEY)
+from django_rdkit.models import *
+from django_rdkit.config import config
 import StringIO
 import psycopg2
 
 """
 This module is for useful cheminformatics related functions
 """
-
-def bulk_load():
-	pass
 
 def get_or_create_compound(smiles):
 	"""
@@ -29,20 +25,36 @@ def get_or_create_compound(smiles):
 	If more than one Compound object returned,
 	returns None since is an error.
 	"""
+	config.do_chiral_sss = True
 	compounds = Compound.objects.filter(molecule__exact=smiles)
 	if not compounds or len(compounds) == 0:
 		mol = Chem.MolFromSmiles(smiles)
+
+		property = Property(amw=Chem.rdMolDescriptors.CalcExactMolWt(mol),
+							hba=Chem.rdMolDescriptors.CalcNumHBA(mol),
+							hbd=Chem.rdMolDescriptors.CalcNumHBD(mol),
+							tpsa=Chem.rdMolDescriptors.CalcTPSA(mol))
+		property.save()
+
+		bfp = Chem.rdMolDescriptors.GetMorganFingerprintAsBitVect(mol, 2, 512)
+		fingerprint = Fingerprint(bfp=bfp)
+		fingerprint.save()
+
+		inchi = Chem.MolToInchi(mol)
+		inchi_key = Chem.InchiToInchiKey(inchi)
 		compound = Compound(smiles=smiles,
 							molecule=mol,
-							inchi=MOL_INCHI(mol),
-							inchi_key=MOL_INCHIKEY(mol),
-							ctab=Chem.MolToMolBlock(mol))
+							inchi=inchi,
+							inchi_key=inchi_key,
+							ctab=Chem.MolToMolBlock(mol),
+							fingerprint=fingerprint,
+							property=property)
 		compound.save()
 		return compound, True
 	elif len(compounds) == 1:
 		return compounds[0], False
 	else:
-		return None, False
+		raise MultipleMoleculeMatchException("Exact match search returned multiple molecules")
 
 def desalt_neutralize(smiles, return_mol=False):
 	"""
@@ -58,8 +70,6 @@ def create_compound_image(compound,smiles=False, size=(300,300), png_path=None):
 	"""
 	if smiles:
 		mol = Chem.MolFromSmiles(compound)
-		# if mol == None:
-		# 	return None
 	else:
 		mol = compound
 	img = Draw.MolToImage(mol, size=size, wedgeBonds=True, kekulize=True)
@@ -97,8 +107,22 @@ def create_substruct_image(mol, substruct_smarts, size=(300,300), highlight_colo
 	return img
 
 
-def write_to_sdf(mol_list, file_path):
-	pass
+def write_to_sdf(mol_id_list):
+	"""
+	Pass the function a list of mol ids
+	and the function returns an open StringIO object.
+	"""
+	mol_list = [Compound.objects.get(pk=int(id)) for id in mol_id_list]
+	sio = StringIO.StringIO()
+	for mol in mol_list:
+		sio.write(mol.ctab+'\n')
+		sio.write('>  <{property}>\n{value}\n\n'.format(property='Compound_ID',value=str(mol.id)))
+		sio.write('>  <{property}>\n{value}\n\n'.format(property='AMW',value=str(mol.property.amw)))
+		sio.write('>  <{property}>\n{value}\n\n'.format(property='HBA',value=str(mol.property.hba)))
+		sio.write('>  <{property}>\n{value}\n\n'.format(property='HBD',value=str(mol.property.hbd)))
+		sio.write('>  <{property}>\n{value}\n\n'.format(property='TPSA',value=str(mol.property.tpsa)))
+		sio.write('$$$$\n')
+	return sio
 
 
 def set_chiral_flag():
@@ -121,9 +145,43 @@ def remove_chiral_flag():
     except psycopg2.DatabaseError, e:
         print 'Error %s' % e
 
-def substructure_search(smiles_substructure):
-	compounds = Compound.objects.filter(molecule__hassubstruct=smiles_substructure)
+def substructure_search(substructure, is_smarts=False):
+	config.do_chiral_sss = True
+	compounds = Compound.objects.filter(molecule__hassubstruct=substructure)
 	if len(compounds) == 0:
 		return None
 	else:
 		return compounds
+
+def similarity_search(smiles, method='tanimoto', threshold=0.5):
+	"""
+	Perform similarity search. Method default is tanimoto with
+	a threshold of 0.5
+	"""
+	config.do_chiral_sss = True
+	config.tanimoto_threshold = threshold
+	method_options = ('tanimoto', 'dice')
+	if method not in method_options:
+		raise InvalidSimilarityMethodException("Method must be either tanimoto or dice")
+	if method == 'tanimoto':
+		compounds = Compound.objects.filter(fingerprint__bfp__tanimoto=MORGANBV_FP(Value(smiles)))
+	else:
+		compounds = Compound.objects.filter(fingerprint__bfp__dice=MORGANBV_FP(Value(smiles)))
+	if len(compounds) == 0:
+		return None
+	else:
+		return compounds
+
+
+class MultipleMoleculeMatchException(Exception):
+	"""
+	Raised when an exact match search returns more
+	than one molecule.
+	"""
+	pass
+
+class InvalidSimilarityMethodException(Exception):
+	"""
+	Raised when an incorrect similarity method is supplied.
+	"""
+	pass

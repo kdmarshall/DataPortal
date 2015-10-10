@@ -8,25 +8,34 @@ Substructure
 {% block body %}
 	<h1>Substructure Search</h1>
 	<div class="row">
-		<div class="container col-lg-6">
+		<div class="container col-lg-12 col-lg-offset-4">
 			<div id="jsme_container"></div>
 			<button type="button" id="get-smiles" class="btn btn-primary">Get SMILES</button>
 			<form role="form" action="/substructure/" method="post">
 				{% csrf_token %}
 				<fieldset>
-					<section class="col col-lg-4">
-            <div class="form-group">
-              <label for="showSmiles">SMILES Input</label>
-              <textarea rows="10" cols="70" class="form-control" id="show-smiles" name="smiles"></textarea>
-            </div>
-          </section>
+					<section class="col col-lg-3">
+            			<div class="form-group">
+             				<label for="showSmiles">SMILES Input</label>
+              				<textarea rows="10" cols="70" class="form-control" id="show-smiles" name="smiles"></textarea>
+            			</div>
+          			</section>
+          			<section class="col col-lg-3">
+            			<div class="form-group">
+              				<label for="showSmarts">SMARTS Input</label>
+              				<textarea rows="10" cols="70" class="form-control" id="show-smarts" name="smarts"></textarea>
+            			</div>
+          			</section>
 				</fieldset>
 				<div class="form-actions">
        				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Submit Substructure Search" />
       			</div>
 			</form>
 		</div>
-		<div class="container col-lg-6">
+		
+	</div>
+	<div class="row">
+		<div class="container col-lg-12">
 			<div class="panel panel-default">
 	  			<div class="panel-heading">Query Results</div>
 	  			<div class="panel-body">
@@ -39,20 +48,31 @@ Substructure
   					<h3>No substructure matches found</h3>
   				{% endif %}
   				{% if matched_substructures %}
-  					<table class="table table-striped">
+  					<button type="button" id="download-structures" class="btn btn-danger">Download Structures</button>
+  					<table class="table table-bordered">
     					<thead>
 	      					<tr>
 	        					<th>Compound ID</th>
-	        					<th>SMILES</th>
 	        					<th>Structure</th>
+	        					<th>SMILES</th>
+	        					<th>MW</th>
+	        					<th>HBA</th>
+	        					<th>HBD</th>
+	        					<th>PSA</th>
+	        					<th>INCHI</th>	        					
 	      					</tr>
 	    				</thead>
 	   					<tbody>
 	   					{% for substruct in matched_substructures %}
 	      					<tr>
-	        					<td>{{ substruct.id }}</td>
-	        					<td>{{ substruct.smiles }}</td>
+	        					<td>NEWCO-{{ substruct.id }}</td>
 	        					<td>{{ substruct.image|safe }}</td>
+	        					<td>{{ substruct.smiles }}</td>
+	        					<td>{{ substruct.property.amw }}</td>
+	        					<td>{{ substruct.property.hba }}</td>
+	        					<td>{{ substruct.property.hbd }}</td>
+	        					<td>{{ substruct.property.tpsa }}</td>
+	        					<td>{{ substruct.inchi }}</td>
 	      					</tr>
 	      				{% endfor %}
 	    				</tbody>
@@ -77,10 +97,15 @@ Substructure
         console.log(smiles);
         $('#show-smiles').val(smiles);
     });
-   // $('#get-cmpd-image').click(function(event){
-   //      var smiles = jsmeApplet.smiles();
-   //      console.log("Requesting image for structure: "+smiles);
-   //  });
-
+   {% if id_list %}
+   $('#download-structures').click(function(event){
+   		var compoundIds = {{ id_list }};
+   		//console.log(compoundIds);
+   		var payload = {'ids': compoundIds};
+   		var url = "/download-structures/";
+      	var full_url = document.location.origin + url + "?" + $.param(payload);
+      	window.open(full_url); 
+   });
+   {% endif %}
 </script>
 {% endblock scripts %}

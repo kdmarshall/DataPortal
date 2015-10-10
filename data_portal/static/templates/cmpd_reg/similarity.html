@@ -8,29 +8,103 @@ Similarity
 {% block body %}
 	<h1>Similarity Search</h1>
 	<div class="row">
-		<div class="container col-lg-6">
+		<div class="container col-lg-12 col-lg-offset-4">
 			<div id="jsme_container"></div>
 			<button type="button" id="get-smiles" class="btn btn-primary">Get SMILES</button>
+		</div>
+	</div>
+	<div class="row">
+		<div class="container">
 			<form role="form" action="/similarity/" method="post">
 				{% csrf_token %}
 				<fieldset>
 					<section class="col col-lg-4">
-            <div class="form-group">
-              <label for="showSmiles">SMILES Input</label>
-              <textarea rows="10" cols="70" class="form-control" id="show-smiles" name="smiles"></textarea>
-            </div>
-          </section>
+            			<div class="form-group">
+             				<label for="showSmiles">SMILES Input</label>
+              				<textarea rows="10" cols="70" class="form-control" id="show-smiles" name="smiles"></textarea>
+            			</div>
+          			</section>
+          			<section class="col col-lg-4">  
+                		<div class="form-group">
+                  			<label for="SimilarityMethod">Method</label>
+                  			<select class="form-control" name="similarity_method">
+                    			<option>Tanimoto</option>
+                    			<option>Dice</option>
+                  			</select>
+                		</div>
+              		</section>
+              		<section class="col col-lg-4">  
+                		<div class="form-group">
+                  			<label for="SimilarityThreshold">Threshold</label>
+                  			<select class="form-control" name="threshold">
+                    			<option>1.0</option>
+                    			<option>0.9</option>
+                    			<option>0.8</option>
+                    			<option>0.7</option>
+                    			<option>0.6</option>
+                    			<option selected>0.5</option>
+                    			<option>0.4</option>
+                    			<option>0.3</option>
+                    			<option>0.2</option>
+                    			<option>0.1</option>
+                  			</select>
+                		</div>
+              		</section>
 				</fieldset>
 				<div class="form-actions">
-       				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Retrieve Compound Image" />
+       				 <input type="submit" id="get-cmpd-image" class="btn btn-success" value="Submit Similarity Search" />
       			</div>
 			</form>
 		</div>
-		<div class="container col-lg-6">
+	</div>
+	<div class="row">
+		<div class="container col-lg-12">
 			<div class="panel panel-default">
 	  			<div class="panel-heading">Query Results</div>
 	  			<div class="panel-body">
-	  				
+	  			{% if searched_smiles %}
+    				<h5>Searched Smiles: {{ searched_smiles }}</h5>
+    				<h5>Searched Compound Image:</h5>
+    				{{ searched_compound_image|safe }}	
+  				{% endif %}
+  				{% if no_matches %}
+  					<h3>No similarity matches found</h3>
+  				{% endif %}
+  				{% if matched_structures %}
+  					<button type="button" id="download-structures" class="btn btn-danger">Download Structures</button>
+  					<table class="table table-bordered">
+    					<thead>
+	      					<tr>
+	        					<th>Compound ID</th>
+	        					<th>Structure</th>
+	        					<th>SMILES</th>
+	        					<th>MW</th>
+	        					<th>HBA</th>
+	        					<th>HBD</th>
+	        					<th>PSA</th>
+	        					<th>INCHI</th>	        					
+	      					</tr>
+	    				</thead>
+	   					<tbody>
+	   					{% for structure in matched_structures %}
+	      					<tr>
+	        					<td>NEWCO-{{ structure.id }}</td>
+	        					<td>{{ structure.image|safe }}</td>
+	        					<td>{{ structure.smiles }}</td>
+	        					<td>{{ structure.property.amw }}</td>
+	        					<td>{{ structure.property.hba }}</td>
+	        					<td>{{ structure.property.hbd }}</td>
+	        					<td>{{ structure.property.tpsa }}</td>
+	        					<td>{{ structure.inchi }}</td>
+	      					</tr>
+	      				{% endfor %}
+	    				</tbody>
+	  				</table>
+  				{% endif %}
+  				{% if smiles_error %}
+    				<h5>{{ smiles_error }}</h5>
+  				{% endif %}
+	  			</div>
 			</div>
 		</div>
 	</div>
@@ -46,10 +120,16 @@ Similarity
         console.log(smiles);
         $('#show-smiles').val(smiles);
     });
-   // $('#get-cmpd-image').click(function(event){
-   //      var smiles = jsmeApplet.smiles();
-   //      console.log("Requesting image for structure: "+smiles);
-   //  });
+   {% if id_list %}
+    $('#download-structures').click(function(event){
+   		var compoundIds = {{ id_list }};
+   		//console.log(compoundIds);
+   		var payload = {'ids': compoundIds};
+   		var url = "/download-structures/";
+      	var full_url = document.location.origin + url + "?" + $.param(payload);
+      	window.open(full_url); 
+    });
+   {% endif %}
 
 </script>
 {% endblock scripts %}

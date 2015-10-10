@@ -7,4 +7,34 @@ Bulk Loader
 
 {% block body %}
 	<h1>Bulk Loader</h1>
+  <h4>Requires a CSV with SMILES strings to be in a column header called 'SMILES'</h4>
+	<div class="well">
+    <form role="form" action="/bulk-loader/"
+      method="post" enctype="multipart/form-data">
+      {% csrf_token %}
+      <fieldset>
+        <div class="row">
+          <section class="col col-lg-3">
+            <div class="form-group">
+              <label for="bulkLoaderFile">Select File</label>
+              <input type="file" name="file" id="input-upload-file" multiple>
+            </div>
+          </section>
+        </div>
+        </div>
+      </fieldset>
+      <div class="form-actions">
+        <input type="submit" class="btn btn-success" value="Load" />
+      </div>
+    </form>
+    {% if load_error %}
+    	<h3>{{ load_error }}</h3>
+    {% endif %}
+    {% if load_results %}
+    	<h2>Results</h2>
+    	<h3>Loaded {{ load_results.new }} New Compounds</h3>
+    	<h3>{{ load_results.existing }} Compounds Have Already Been Loaded</h3>
+    	<h3>{{ load_results.error }} Compounds Had An Error And Could Not Be Loaded</h3>
+    {% endif %}
+  </div>
 {% endblock body %}

@@ -7,9 +7,6 @@ class Fingerprint(rdkit_models.Model):
 
 	bfp = rdkit_models.BfpField(null=True,
 								verbose_name="Binary Fingerprint")
-	sfp = rdkit_models.SfpField(null=True,
-								verbose_name="Sparse Vector Fingerprint")
-
 	class Meta:
 		db_table = 'compound_fingerprint'
 		verbose_name = 'Compound Fingerprint'
@@ -24,8 +21,6 @@ class Property(models.Model):
 											verbose_name="Hydrogen Bond Donors")
 	hba = models.PositiveSmallIntegerField(blank=True, null=True,
 											verbose_name="Hydrogen Bond Acceptors")
-	logp = models.DecimalField(blank=True, null=True, max_digits=10, decimal_places=3,
-								verbose_name="LogP")
 	tpsa = models.DecimalField(blank=True, null=True, max_digits=10, decimal_places=3,
 								verbose_name="Total Polar Surface Area")
 
@@ -61,3 +56,6 @@ class Compound(rdkit_models.Model):
 		db_table = 'compound'
         verbose_name = "Compound"
         verbose_name_plural = "Compounds"
+
+	def __unicode__(self):
+		return u"Compound ID {id} loaded on {date}".format(id=self.id, date=self.datetime_loaded.strftime('%-I:%M %p %B %-d %Y'))

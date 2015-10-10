@@ -24,4 +24,5 @@ urlpatterns = [
     url(r'^substructure/$', views.substructure),
     url(r'^similarity/$', views.similarity),
     url(r'^bulk-loader/$', views.bulk_loader),
+    url(r'^download-structures/$', views.download_structures),
 ]
