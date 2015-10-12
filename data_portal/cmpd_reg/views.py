@@ -15,6 +15,7 @@ from utils import (create_compound_image,
 import StringIO
 import csv
 import json
+import time
 
 def index(request):
 	return render(request, 'cmpd_reg/index.html', {})
@@ -26,7 +27,7 @@ def creg_index(request):
 		if not smiles:
 			return render(request, 'cmpd_reg/cmpd-reg.html', {})
 		try:
-			result_compound, is_new = get_or_create_compound(smiles)
+			result_compound, is_new = get_or_create_compound(smiles, clean=True)
 		except Exception, e:
 			print str(e)
 			return render(request, 'cmpd_reg/cmpd-reg.html', {
@@ -53,11 +54,40 @@ def substructure(request):
 	if request.method == 'POST':
 		smiles = request.POST.get("smiles", None)
 		smarts = request.POST.get("smarts", None)
-		print smarts
+		search_type = request.POST.get("search_type", None)
+		search_type_options = {
+			'Normal': False,
+			'Inverted': True
+		}
+		if smarts:
+			print "Using SMARTS pattern: {}".format(smarts)
+			matched_substructures = substructure_search(smarts, is_smarts=True, inverted=search_type_options[search_type])
+			if not matched_substructures:
+				return render(request, 'cmpd_reg/substructure.html', {
+					'searched_smiles': smarts,
+					'no_matches': True,
+				})
+			matched_output = []
+			id_list = []
+			for substruct in matched_substructures:
+				cmpd_obj = {}
+				cmpd_obj['id'] = str(substruct.id)
+				id_list.append(str(substruct.id))
+				cmpd_obj['smiles'] = substruct.smiles
+				cmpd_obj['inchi'] = substruct.inchi
+				cmpd_obj['property'] = substruct.property
+				pil_image = create_substruct_image(substruct.molecule, smarts)
+				cmpd_obj['image'] = create_image_tag(pil_image)
+				matched_output.append(cmpd_obj)
+			return render(request, 'cmpd_reg/substructure.html', {
+				'searched_smiles': smarts,
+				'matched_substructures': matched_output,
+				'id_list': mark_safe(json.dumps(id_list, cls=DjangoJSONEncoder)),
+			})
 		searched_image = create_compound_image(smiles, smiles=True)
 		if searched_image:
 			searched_img_tag = create_image_tag(searched_image)
-			matched_substructures = substructure_search(smiles)
+			matched_substructures = substructure_search(smiles, inverted=search_type_options[search_type])
 			if not matched_substructures:
 				return render(request, 'cmpd_reg/substructure.html', {
 					'searched_smiles': smiles,
@@ -130,7 +160,7 @@ def similarity(request):
 
 def bulk_loader(request):
 	if request.method == "POST":
-		output_stats = {'new':0,'existing':0,'error':0}
+		output_stats = {'new':0,'existing':0,'error':0,'error_messages':[]}
 		reader = csv.DictReader(request.FILES['file'])
 		for row in reader:
 			if 'SMILES' not in row.keys():
@@ -138,7 +168,7 @@ def bulk_loader(request):
 					'load_error': "Error! CSV must contain a column header named 'SMILES'"
 				})
 			try:
-				_, is_new = get_or_create_compound(row['SMILES'])
+				_, is_new = get_or_create_compound(row['SMILES'], clean=True)
 				if is_new:
 					output_stats['new'] += 1
 				else:
@@ -146,6 +176,7 @@ def bulk_loader(request):
 			except Exception, e:
 				print str(e)
 				output_stats['error'] += 1
+				output_stats['error_messages'].append("SMILES {} had the error: {}".format(row['SMILES'], str(e)))
 		return render(request, 'cmpd_reg/bulk_loader.html', {
 			'load_results': output_stats
 		})
@@ -156,5 +187,5 @@ def download_structures(request):
 	file_ids = request.GET.getlist('ids[]', None)
 	s = write_to_sdf(file_ids)
 	response = HttpResponse(s.getvalue(), content_type='text/plain')
-	response['Content-Disposition'] = 'attachment; filename="%s.sdf"' % "substructure_search"
+	response['Content-Disposition'] = 'attachment; filename="%s.sdf"' % "search_results_{}".format(time.strftime("%m%d%Y"))
 	return response

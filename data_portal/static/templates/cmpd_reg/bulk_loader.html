@@ -35,6 +35,9 @@ Bulk Loader
     	<h3>Loaded {{ load_results.new }} New Compounds</h3>
     	<h3>{{ load_results.existing }} Compounds Have Already Been Loaded</h3>
     	<h3>{{ load_results.error }} Compounds Had An Error And Could Not Be Loaded</h3>
+      {% for msg in load_results.error_messages %}
+        <h3>{{ msg }}</h3>
+      {% endfor %}
     {% endif %}
   </div>
 {% endblock body %}

@@ -12,6 +12,8 @@ class Fingerprint(rdkit_models.Model):
 		verbose_name = 'Compound Fingerprint'
 		verbose_name_plural = 'Compound Fingerprints'
 
+	def __unicode__(self):
+		return u"Compound Fingerprint with ID {}".format(self.id)
 
 class Property(models.Model):
 
@@ -28,6 +30,9 @@ class Property(models.Model):
 		db_table = 'compound_property'
 		verbose_name = 'Compound Property'
 		verbose_name_plural = 'Compound Properties'
+
+	def __unicode__(self):
+		return u"Compound Property with ID {}".format(self.id)
 
 
 class Compound(rdkit_models.Model):

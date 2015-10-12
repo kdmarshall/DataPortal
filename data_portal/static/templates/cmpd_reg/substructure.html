@@ -11,19 +11,32 @@ Substructure
 		<div class="container col-lg-12 col-lg-offset-4">
 			<div id="jsme_container"></div>
 			<button type="button" id="get-smiles" class="btn btn-primary">Get SMILES</button>
+		</div>
+	</div>
+	<div class="row">
+		<div class="container">
 			<form role="form" action="/substructure/" method="post">
 				{% csrf_token %}
 				<fieldset>
-					<section class="col col-lg-3">
+					<section class="col col-lg-4">
             			<div class="form-group">
              				<label for="showSmiles">SMILES Input</label>
               				<textarea rows="10" cols="70" class="form-control" id="show-smiles" name="smiles"></textarea>
             			</div>
           			</section>
-          			<section class="col col-lg-3">
+          			<section class="col col-lg-4">
             			<div class="form-group">
               				<label for="showSmarts">SMARTS Input</label>
               				<textarea rows="10" cols="70" class="form-control" id="show-smarts" name="smarts"></textarea>
+            			</div>
+          			</section>
+          			<section class="col col-lg-4">
+            			<div class="form-group">
+              				<label for="searchType">Search Type</label>
+              				<select class="form-control" name="search_type">
+                    			<option selected>Normal</option>
+                    			<option>Inverted</option>
+                  			</select>
             			</div>
           			</section>
 				</fieldset>
@@ -32,7 +45,6 @@ Substructure
       			</div>
 			</form>
 		</div>
-		
 	</div>
 	<div class="row">
 		<div class="container col-lg-12">
@@ -40,8 +52,10 @@ Substructure
 	  			<div class="panel-heading">Query Results</div>
 	  			<div class="panel-body">
 	  			{% if searched_smiles %}
-    				<h5>Searched Smiles: {{ searched_smiles }}</h5>
-    				<h5>Searched Compound Image:</h5>
+    				<h5>Query: {{ searched_smiles }}</h5>
+  				{% endif %}
+  				{% if searched_compound_image %}
+  					<h5>Searched Compound Image:</h5>
     				{{ searched_compound_image|safe }}	
   				{% endif %}
   				{% if no_matches %}

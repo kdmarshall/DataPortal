@@ -4,11 +4,15 @@ from django.db import connection
 
 from rdkit import Chem 
 from rdkit.Chem import Draw
+from rdkit.Chem import SaltRemover
+from rdkit.Chem import AllChem
+from django_rdkit.models import *
+from django_rdkit.config import config
+
 from models import (Compound,
 					Property,
 					Fingerprint)
-from django_rdkit.models import *
-from django_rdkit.config import config
+
 import StringIO
 import psycopg2
 
@@ -16,16 +20,21 @@ import psycopg2
 This module is for useful cheminformatics related functions
 """
 
-def get_or_create_compound(smiles):
+_reactions=None
+
+def get_or_create_compound(smiles, clean=False):
 	"""
 	Will return the compound object if found
 	in the database or will create a new one
 	and return it. Also returned a boolean 
 	indicating whether or not it was created.
 	If more than one Compound object returned,
-	returns None since is an error.
+	an exception is raised.
 	"""
+	# TODO add additional check of inchi/inchikey to assure uniqueness
 	config.do_chiral_sss = True
+	if clean:
+		smiles = desalt_neutralize(smiles, return_smiles=True)
 	compounds = Compound.objects.filter(molecule__exact=smiles)
 	if not compounds or len(compounds) == 0:
 		mol = Chem.MolFromSmiles(smiles)
@@ -56,18 +65,41 @@ def get_or_create_compound(smiles):
 	else:
 		raise MultipleMoleculeMatchException("Exact match search returned multiple molecules")
 
-def desalt_neutralize(smiles, return_mol=False):
+def desalt_neutralize(smiles, return_smiles=False, remove_only=None):
 	"""
-	Accepts SMILES and returns a neutralized 
-	SMILES string or mol object.
+	Accepts SMILES and returns a neutralized and desalted
+	SMILES string or Mol object. Keyword remove_only
+	accepts a string in the format of SMARTS optional list of salt elements
+	that should only be removed. For example, remove_only="[Cl,Br]"
 	"""
-	pass
+	# TODO spend more time understanding the desalt and neutral process. Make sure
+	# it is not changing the molecule too drastically
+	desalted = desalt(smiles, remove_only=remove_only)
+	desalted_neutralized = neutralize(Chem.MolToSmiles(desalted, isomericSmiles=True))
+	if return_smiles:
+		return desalted_neutralized[0]
+	else:
+		return Chem.MolFromSmiles(desalted_neutralized[0])
+	
+
+def desalt(smiles, remove_only=None):
+	"""
+	Accepts SMILES and returns a desalted Mol object.
+	Keyword remove_only accepts a string in the format of SMARTS optional list of salt elements
+	that should only be removed. For example, remove_only="[Cl,Br]"
+	"""
+	remover = SaltRemover.SaltRemover(defnData=remove_only) if remove_only else SaltRemover.SaltRemover()
+	mol = Chem.MolFromSmiles(smiles)
+	resolved = remover.StripMol(mol, dontRemoveEverything=True)
+	return resolved
 
 def create_compound_image(compound,smiles=False, size=(300,300), png_path=None):
 	"""
 	Returns a PIL Image object of compound.
 	Writes to PNG file if path is supplied.
 	"""
+	#TODO instead of smiles keyword flag, just check if compound is instance
+	# of basestring or rdkit MOL object
 	if smiles:
 		mol = Chem.MolFromSmiles(compound)
 	else:
@@ -145,9 +177,18 @@ def remove_chiral_flag():
     except psycopg2.DatabaseError, e:
         print 'Error %s' % e
 
-def substructure_search(substructure, is_smarts=False):
+def substructure_search(substructure, is_smarts=False, inverted=False):
+	"""
+	Perform substructure search. If is_smarts is true, uses smarts pattern
+	to perform query. If inverted is true, checks to see if compound in
+	database is a substructure of the query molecule.
+	"""
 	config.do_chiral_sss = True
-	compounds = Compound.objects.filter(molecule__hassubstruct=substructure)
+	query = QMOL(Value(substructure)) if is_smarts else substructure
+	if inverted:
+		compounds = Compound.objects.filter(molecule__issubstruct=query)
+	else:
+		compounds = Compound.objects.filter(molecule__hassubstruct=query)
 	if len(compounds) == 0:
 		return None
 	else:
@@ -172,6 +213,46 @@ def similarity_search(smiles, method='tanimoto', threshold=0.5):
 	else:
 		return compounds
 
+def _InitialiseNeutralisationReactions():
+    patts= (
+        # Imidazoles
+        ('[n+;H]','n'),
+        # Amines
+        ('[N+;!H0]','N'),
+        # Carboxylic acids and alcohols
+        ('[$([O-]);!$([O-][#7])]','O'),
+        # Thiols
+        ('[S-;X1]','S'),
+        # Sulfonamides
+        ('[$([N-;X2]S(=O)=O)]','N'),
+        # Enamines
+        ('[$([N-;X2][C,N]=C)]','N'),
+        # Tetrazoles
+        ('[n-]','[nH]'),
+        # Sulfoxides
+        ('[$([S-]=O)]','S'),
+        # Amides
+        ('[$([N-]C=O)]','N'),
+        )
+    return [(Chem.MolFromSmarts(x),Chem.MolFromSmiles(y,False)) for x,y in patts]
+
+def neutralize(smiles, reactions=None):
+    global _reactions
+    if reactions is None:
+        if _reactions is None:
+            _reactions=_InitialiseNeutralisationReactions()
+        reactions=_reactions
+    mol = Chem.MolFromSmiles(smiles)
+    replaced = False
+    for i,(reactant, product) in enumerate(reactions):
+        while mol.HasSubstructMatch(reactant):
+            replaced = True
+            rms = AllChem.ReplaceSubstructs(mol, reactant, product)
+            mol = rms[0]
+    if replaced:
+        return (Chem.MolToSmiles(mol,True), True)
+    else:
+        return (smiles, False)
 
 class MultipleMoleculeMatchException(Exception):
 	"""
@@ -185,3 +266,9 @@ class InvalidSimilarityMethodException(Exception):
 	Raised when an incorrect similarity method is supplied.
 	"""
 	pass
+
+def test_desalt_neutralize():
+	compounds = Compound.objects.all()
+	for compound in compounds:
+		if '-' in compound.smiles or '+' in compound.smiles:
+			print "{} -> {}".format(compound.smiles, desalt_neutralize(compound.smiles, return_smiles=True))
