@@ -270,5 +270,5 @@ class InvalidSimilarityMethodException(Exception):
 def test_desalt_neutralize():
 	compounds = Compound.objects.all()
 	for compound in compounds:
-		if '-' in compound.smiles or '+' in compound.smiles:
+		if '-' in compound.smiles or '+' in compound.smiles or '.' in compound.smiles:
 			print "{} -> {}".format(compound.smiles, desalt_neutralize(compound.smiles, return_smiles=True))
