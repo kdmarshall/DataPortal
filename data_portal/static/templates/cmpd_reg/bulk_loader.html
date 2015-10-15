@@ -34,10 +34,27 @@ Bulk Loader
     	<h2>Results</h2>
     	<h3>Loaded {{ load_results.new }} New Compounds</h3>
     	<h3>{{ load_results.existing }} Compounds Have Already Been Loaded</h3>
-    	<h3>{{ load_results.error }} Compounds Had An Error And Could Not Be Loaded</h3>
-      {% for msg in load_results.error_messages %}
-        <h3>{{ msg }}</h3>
-      {% endfor %}
+    	<h3>{{ load_results.errors.count }} Compounds Had An Error And Could Not Be Loaded</h3>
+      {% if load_results.errors.report %}
+        <table class="table table-bordered">
+          <thead>
+            <tr>
+              <th>CSV Row Number</th>
+              <th>SMILES</th>
+              <th>Error Message</th>                
+            </tr>
+          </thead>
+          <tbody>
+          {% for error_obj in load_results.errors.report %}
+            <tr>
+              <td>{{ error_obj.row }}</td>
+              <td>{{ error_obj.smiles }}</td>
+              <td>{{ error_obj.msg }}</td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
     {% endif %}
   </div>
 {% endblock body %}

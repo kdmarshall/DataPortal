@@ -22,7 +22,7 @@ This module is for useful cheminformatics related functions
 
 _reactions=None
 
-def get_or_create_compound(smiles, clean=False):
+def get_or_create_compound(smiles, clean=False, inchi_standard=False):
 	"""
 	Will return the compound object if found
 	in the database or will create a new one
@@ -30,15 +30,25 @@ def get_or_create_compound(smiles, clean=False):
 	indicating whether or not it was created.
 	If more than one Compound object returned,
 	an exception is raised.
+	If clean=True, input SMILES will be desalted and
+	neutralized.
+	If inchi_standard=True, INCHI will be used to determine
+	if a compounds already exists in the databases. Since
+	the standard INCHI canonicalized tautomers, you will see
+	collisions between tautomers such as E/Z imines.
 	"""
-	# TODO add additional check of inchi/inchikey to assure uniqueness
 	config.do_chiral_sss = True
 	if clean:
 		smiles = desalt_neutralize(smiles, return_smiles=True)
 	compounds = Compound.objects.filter(molecule__exact=smiles)
 	if not compounds or len(compounds) == 0:
 		mol = Chem.MolFromSmiles(smiles)
-
+		inchi = Chem.MolToInchi(mol)
+		if inchi_standard:
+			inchi_check = Compound.objects.filter(inchi=inchi)
+			if len(inchi_check) > 0:
+				# TODO instead of raising exception, return matched compound
+				raise MoleculeMatchException("Inchi from SMILES {} matched an Inchi existing in database with SMILES {}".format(smiles, inchi_check[0].smiles))
 		property = Property(amw=Chem.rdMolDescriptors.CalcExactMolWt(mol),
 							hba=Chem.rdMolDescriptors.CalcNumHBA(mol),
 							hbd=Chem.rdMolDescriptors.CalcNumHBD(mol),
@@ -49,7 +59,6 @@ def get_or_create_compound(smiles, clean=False):
 		fingerprint = Fingerprint(bfp=bfp)
 		fingerprint.save()
 
-		inchi = Chem.MolToInchi(mol)
 		inchi_key = Chem.InchiToInchiKey(inchi)
 		compound = Compound(smiles=smiles,
 							molecule=mol,
@@ -61,9 +70,15 @@ def get_or_create_compound(smiles, clean=False):
 		compound.save()
 		return compound, True
 	elif len(compounds) == 1:
+		if inchi_standard:
+			mol = Chem.MolFromSmiles(smiles)
+			inchi = Chem.MolToInchi(mol)
+			inchi_check = Compound.objects.filter(inchi=inchi)
+			if len(inchi_check) != 1:
+				raise MoleculeMatchException("Inchi from SMILES {} did not match one Inchi existing in database".format(smiles))
 		return compounds[0], False
 	else:
-		raise MultipleMoleculeMatchException("Exact match search returned multiple molecules")
+		raise MoleculeMatchException("Exact match search returned multiple molecules")
 
 def desalt_neutralize(smiles, return_smiles=False, remove_only=None):
 	"""
@@ -254,10 +269,9 @@ def neutralize(smiles, reactions=None):
     else:
         return (smiles, False)
 
-class MultipleMoleculeMatchException(Exception):
+class MoleculeMatchException(Exception):
 	"""
-	Raised when an exact match search returns more
-	than one molecule.
+	Raised when an exact match search returns an unexpected result.
 	"""
 	pass
 

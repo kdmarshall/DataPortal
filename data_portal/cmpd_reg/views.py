@@ -160,23 +160,25 @@ def similarity(request):
 
 def bulk_loader(request):
 	if request.method == "POST":
-		output_stats = {'new':0,'existing':0,'error':0,'error_messages':[]}
+		output_stats = {'new':0,'existing':0,'errors':{'count':0,'report':[]}}
 		reader = csv.DictReader(request.FILES['file'])
+		row_count = 1
 		for row in reader:
+			row_count += 1
 			if 'SMILES' not in row.keys():
 				return render(request, 'cmpd_reg/bulk_loader.html', {
 					'load_error': "Error! CSV must contain a column header named 'SMILES'"
 				})
 			try:
-				_, is_new = get_or_create_compound(row['SMILES'], clean=True)
+				_, is_new = get_or_create_compound(row['SMILES'], clean=True, inchi_standard=True)
 				if is_new:
 					output_stats['new'] += 1
 				else:
 					output_stats['existing'] += 1
 			except Exception, e:
 				print str(e)
-				output_stats['error'] += 1
-				output_stats['error_messages'].append("SMILES {} had the error: {}".format(row['SMILES'], str(e)))
+				output_stats['errors']['count'] += 1
+				output_stats['errors']['report'].append({'smiles':row['SMILES'],'msg':str(e),'row':str(row_count)})
 		return render(request, 'cmpd_reg/bulk_loader.html', {
 			'load_results': output_stats
 		})
