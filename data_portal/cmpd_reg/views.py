@@ -24,10 +24,12 @@ def index(request):
 def creg_index(request):
 	if request.method == 'POST':
 		smiles = request.POST.get("smiles", None)
+		inchi = request.POST.get("inchi", False)
+		inchi_check = True if inchi == 'on' else False
 		if not smiles:
 			return render(request, 'cmpd_reg/cmpd-reg.html', {})
 		try:
-			result_compound, is_new = get_or_create_compound(smiles, clean=True)
+			result_compound, is_new = get_or_create_compound(smiles, clean=True, inchi_standard=inchi_check)
 		except Exception, e:
 			print str(e)
 			return render(request, 'cmpd_reg/cmpd-reg.html', {
@@ -160,6 +162,8 @@ def similarity(request):
 
 def bulk_loader(request):
 	if request.method == "POST":
+		inchi = request.POST.get("inchi", False)
+		inchi_check = True if inchi == 'on' else False
 		output_stats = {'new':0,'existing':0,'errors':{'count':0,'report':[]}}
 		reader = csv.DictReader(request.FILES['file'])
 		row_count = 1
@@ -170,7 +174,7 @@ def bulk_loader(request):
 					'load_error': "Error! CSV must contain a column header named 'SMILES'"
 				})
 			try:
-				_, is_new = get_or_create_compound(row['SMILES'], clean=True, inchi_standard=True)
+				_, is_new = get_or_create_compound(row['SMILES'], clean=True, inchi_standard=inchi_check)
 				if is_new:
 					output_stats['new'] += 1
 				else:

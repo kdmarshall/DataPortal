@@ -46,9 +46,13 @@ def get_or_create_compound(smiles, clean=False, inchi_standard=False):
 		inchi = Chem.MolToInchi(mol)
 		if inchi_standard:
 			inchi_check = Compound.objects.filter(inchi=inchi)
-			if len(inchi_check) > 0:
-				# TODO instead of raising exception, return matched compound
-				raise MoleculeMatchException("Inchi from SMILES {} matched an Inchi existing in database with SMILES {}".format(smiles, inchi_check[0].smiles))
+			if len(inchi_check) == 0:
+				pass
+			elif len(inchi_check) == 1:
+				return inchi_check[0], False
+			else:
+				matched_smiles = " AND ".join([inchi_obj.smiles for inchi_obj in inchi_check])
+				raise MoleculeMatchException("Inchi from SMILES {} matched an Inchi existing in database with SMILES {}".format(smiles, matched_smiles))
 		property = Property(amw=Chem.rdMolDescriptors.CalcExactMolWt(mol),
 							hba=Chem.rdMolDescriptors.CalcNumHBA(mol),
 							hbd=Chem.rdMolDescriptors.CalcNumHBD(mol),
